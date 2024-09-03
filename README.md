@@ -12,3 +12,7 @@ npm install -g ts-node
 npm i
 ts-node hexagon-flower-of-life.ts
 ```
+
+# How to use
+
+Go into whatever generator you want to use and read the comments at the top, it'll tell you what it does and what you need to do to use it.

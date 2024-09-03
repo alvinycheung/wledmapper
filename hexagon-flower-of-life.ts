@@ -2,12 +2,14 @@ import fs from "fs";
 
 // Generates a serpentine hexagonal 2D ledmap.json for WLED.
 // This fits a flower of life pattern.
-// This adds blanks (-1) to the array to keep the correct the aspect ratio.
+// This adds blanks (-1) to the array to keep the correct aspect ratio.
 
 // Set the size here
 const size = 13;
 
-let goingDown = false;
+let goingUp = true;
+
+const insertInternalPadding = true;
 
 const generateRow = ({
   size,
@@ -22,25 +24,24 @@ const generateRow = ({
   newLEDIndex: number;
 } => {
   const row: number[] = [];
-  if (rowNumber === 1) goingDown = false;
+  if (rowNumber === 0) goingUp = true;
 
-  const totalRowLength = (size - 1) * 2 + size;
+  const totalRowLength = size + (size - 1) * 2;
 
-  if (!goingDown) {
-    // Going up
-    const padding = size - rowNumber; // Calculate padding based on rowNumber
+  if (goingUp) {
+    const padding = size - rowNumber - 1; // Calculate padding based on rowNumber
 
     // Insert padding (-1s) before the numbers
     for (let index = 0; index < padding; index++) {
       row.push(-1);
     }
 
-    // Insert numbers
-    for (let index = 0; index < totalRowLength - padding * 2; index++) {
+    // Insert numbers with optional internal padding
+    for (let index = 0; index < size + rowNumber; index++) {
       row.push(currentLEDIndex++);
 
-      //if this isn't the last number, insert a -1
-      if (index !== totalRowLength - padding * 2 - 1) {
+      // Insert internal padding (-1) between numbers, but only if not at the last number
+      if (insertInternalPadding && index !== size + rowNumber - 1) {
         row.push(-1);
       }
     }
@@ -50,38 +51,37 @@ const generateRow = ({
       row.push(-1);
     }
 
-    // If the row has reached the maximum width, switch to going down
-    if (row.filter((element) => element !== -1).length === totalRowLength) {
-      goingDown = true;
+    // If the row has numbers in the 0 and last index, switch to going down
+    if (row[0] !== -1 && row[row.length - 1] !== -1) {
+      goingUp = false;
     }
   } else {
     // Going down
-    const adjustedRowNumber = rowNumber - size - 1;
+    const padding = rowNumber - size + 1; // Calculate padding based on rowNumber
 
-    for (let index = 0; index < adjustedRowNumber + 1; index++) {
+    // Insert padding (-1s) before the numbers
+    for (let index = 0; index < padding; index++) {
       row.push(-1);
     }
 
-    for (
-      let index = 0;
-      index < totalRowLength - (adjustedRowNumber + 1) * 2;
-      index++
-    ) {
+    // Insert numbers with optional internal padding
+    for (let index = 0; index < 3 * size - 2 - rowNumber; index++) {
       row.push(currentLEDIndex++);
 
-      //if this isn't the last number, insert a -1
-      if (index !== totalRowLength - (adjustedRowNumber + 1) * 2 - 1) {
+      // Insert internal padding (-1) between numbers, but only if not at the last number
+      if (insertInternalPadding && index !== 3 * size - 3 - rowNumber) {
         row.push(-1);
       }
     }
 
-    for (let index = 0; index < adjustedRowNumber + 1; index++) {
+    // Insert padding (-1s) after the numbers
+    for (let index = 0; index < padding; index++) {
       row.push(-1);
     }
   }
 
-  // if the row number is even, reverse it
-  if (rowNumber % 2 === 0) {
+  //If the row number is odd, reverse it
+  if (rowNumber % 2 === 1) {
     row.reverse();
   }
 
@@ -95,7 +95,7 @@ const generateHexagonal2DArray = (size: number) => {
   const hexArray: number[][] = [];
 
   let currentLEDIndex = 0;
-  let rowNumber = 1;
+  let rowNumber = 0;
   let continueLooping = true;
 
   while (continueLooping) {
@@ -107,20 +107,16 @@ const generateHexagonal2DArray = (size: number) => {
 
     currentLEDIndex = newLEDIndex;
 
-    //append the column to the hexArray
+    // Append the row to the hexArray
     hexArray.push(row);
-
-    //if row has size number of elements that are not -1, then we are done
 
     const itemsInRowThatAreNotNegativeOne = row.filter(
       (element) => element !== -1
     );
 
-    continueLooping = !(
-      itemsInRowThatAreNotNegativeOne.length === size && rowNumber !== 1
-    );
-
-    continueLooping = continueLooping ? rowNumber < 30 : false;
+    continueLooping =
+      rowNumber <= 25 &&
+      !(itemsInRowThatAreNotNegativeOne.length === size && rowNumber !== 0);
 
     ++rowNumber;
   }
@@ -144,10 +140,10 @@ const formatted = formatPrint2DArrayAsReadableJSON(array);
 
 console.log(formatted);
 
-//make the tmp directory if it doesn't exist
+// Make the tmp directory if it doesn't exist
 if (!fs.existsSync("./tmp")) {
   fs.mkdirSync("./tmp");
 }
 
-//write the output to a file
+// Write the output to a file
 fs.writeFileSync("./tmp/ledmap.json", formatted);
