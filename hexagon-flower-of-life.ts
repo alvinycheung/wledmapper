@@ -5,7 +5,7 @@ import fs from "fs";
 // This adds blanks (-1) to the array to keep the correct aspect ratio.
 
 // Set the size here
-const size = 13;
+const size = 8;
 
 let goingUp = true;
 
@@ -128,22 +128,41 @@ const formatPrint2DArrayAsReadableJSON = (array: number[][]) => {
   return (
     "[" +
     array
-      .map((row) => "[" + row.map((num) => num.toString()).join(",\t") + "]")
+      .map((row) => row.map((num) => num.toString()).join(",\t"))
       .join(",\n ") +
     "]"
   );
 };
 
 const array = generateHexagonal2DArray(size);
-
-const formatted = formatPrint2DArrayAsReadableJSON(array);
-
-console.log(formatted);
+const transposed = array[0].map((_, colIndex) =>
+  array.map((row) => row[colIndex])
+);
 
 // Make the tmp directory if it doesn't exist
 if (!fs.existsSync("./tmp")) {
   fs.mkdirSync("./tmp");
 }
 
+// wrap formatted in {"map": formatted}
+const output = JSON.stringify({
+  map: "replaceMe",
+  size: {
+    width: array[0].length,
+    height: array.length,
+    size: array.length * array[0].length,
+  },
+})
+  .toString()
+  .replace('"replaceMe"', formatPrint2DArrayAsReadableJSON(transposed))
+  .replace('{"map":[', '{"map":[\n')
+  .replace(',"size":{', ',\n"size":{');
+
+// Print the output
+console.log(output);
+
 // Write the output to a file
-fs.writeFileSync("./tmp/ledmap.json", formatted);
+fs.writeFileSync("./tmp/ledmap.json", output);
+
+// print current directory path
+console.log(`\nWrote to: ${__dirname}/tmp/ledmap.json`);
